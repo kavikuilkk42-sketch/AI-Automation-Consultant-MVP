@@ -144,9 +144,120 @@ Save Business Configuration
 
 </div>
 
+<div class="card" style="margin-top:24px;">
+  <h2>📋 Customer Leads</h2>
+  <div class="subtitle">Recent enquiries captured by the AI assistant</div>
+
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="text-align:left;border-bottom:2px solid #e5e7eb;">
+          <th style="padding:12px;">Customer</th>
+          <th style="padding:12px;">Phone</th>
+          <th style="padding:12px;">Requirement</th>
+          <th style="padding:12px;">Date</th>
+          <th style="padding:12px;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="leadsTableBody">
+        <tr>
+          <td colspan="5" style="padding:18px;text-align:center;">
+            Loading leads...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="leadsStatus" style="margin-top:15px;font-weight:bold;"></div>
+</div>
+
 </div>
 
 <script>
+async function updateLeadStatus(leadId, status) {
+  try {
+    const response = await fetch(`/api/leads/${encodeURIComponent(leadId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ status })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Unable to update lead status");
+    }
+
+    document.getElementById("leadsStatus").textContent =
+      "✅ Lead status updated successfully.";
+
+  } catch (error) {
+    document.getElementById("leadsStatus").textContent =
+      "❌ " + error.message;
+
+    await loadLeads();
+  }
+}
+
+async function loadLeads() {
+  const tableBody = document.getElementById("leadsTableBody");
+  const status = document.getElementById("leadsStatus");
+
+  try {
+    const response = await fetch("/api/leads");
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || "Unable to load leads");
+    }
+
+    if (!data.leads || data.leads.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;">No leads found.</td></tr>';
+      status.textContent = "0 leads found.";
+      return;
+    }
+
+    tableBody.innerHTML = data.leads.slice().reverse().map(lead => {
+      const date = new Date(lead.createdAt).toLocaleString();
+
+      return `
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:12px;">${escapeHtml(lead.name)}</td>
+          <td style="padding:12px;">${escapeHtml(lead.phone)}</td>
+          <td style="padding:12px;">${escapeHtml(lead.requirement || "-")}</td>
+          <td style="padding:12px;">${escapeHtml(date)}</td>
+          <td style="padding:12px;"><select
+  onchange="updateLeadStatus('${escapeHtml(lead.id)}', this.value)"
+  style="padding:7px 10px;border:1px solid #ccd3dd;border-radius:8px;"
+>
+  <option value="new" ${lead.status === "new" ? "selected" : ""}>New</option>
+  <option value="contacted" ${lead.status === "contacted" ? "selected" : ""}>Contacted</option>
+  <option value="converted" ${lead.status === "converted" ? "selected" : ""}>Converted</option>
+  <option value="lost" ${lead.status === "lost" ? "selected" : ""}>Lost</option>
+</select></td>
+        </tr>
+      `;
+    }).join("");
+
+    status.textContent = `${data.count} lead(s) found.`;
+
+  } catch (error) {
+    tableBody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;">Unable to load leads.</td></tr>';
+    status.textContent = "❌ " + error.message;
+  }
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 async function loadBusiness(){
 
@@ -211,10 +322,18 @@ document
 });
 
 loadBusiness();
+loadLeads();
 
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
 
 

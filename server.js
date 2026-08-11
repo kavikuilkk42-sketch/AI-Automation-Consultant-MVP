@@ -320,6 +320,97 @@ app.post("/api/leads", async (req, res) => {
   });
 });
 
+app.get("/api/leads", requireAdmin, async (_req, res) => {
+  try {
+    const leadsFile = path.join(__dirname, "data", "leads.json");
+
+    let leads = [];
+
+    try {
+      leads = JSON.parse(await fs.readFile(leadsFile, "utf8"));
+    } catch {
+      leads = [];
+    }
+
+    res.json({
+      ok: true,
+      count: leads.length,
+      leads
+    });
+  } catch (error) {
+    console.error("Lead retrieval error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to load leads"
+    });
+  }
+});
+app.patch("/api/leads/:id", requireAdmin, async (req, res) => {
+  try {
+    const allowedStatuses = [
+      "new",
+      "contacted",
+      "converted",
+      "lost"
+    ];
+
+    const status = String(req.body.status || "")
+      .trim()
+      .toLowerCase();
+
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({
+        ok: false,
+        error: "Invalid lead status"
+      });
+    }
+
+    const leadsFile = path.join(__dirname, "data", "leads.json");
+
+    let leads = [];
+
+    try {
+      leads = JSON.parse(await fs.readFile(leadsFile, "utf8"));
+    } catch {
+      leads = [];
+    }
+
+    const leadIndex = leads.findIndex(
+      (lead) => String(lead.id) === String(req.params.id)
+    );
+
+    if (leadIndex === -1) {
+      return res.status(404).json({
+        ok: false,
+        error: "Lead not found"
+      });
+    }
+
+    leads[leadIndex].status = status;
+    leads[leadIndex].updatedAt = new Date().toISOString();
+
+    await fs.writeFile(
+      leadsFile,
+      JSON.stringify(leads, null, 2),
+      "utf8"
+    );
+
+    res.json({
+      ok: true,
+      message: "Lead status updated successfully",
+      lead: leads[leadIndex]
+    });
+
+  } catch (error) {
+    console.error("Lead status update error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to update lead status"
+    });
+  }
+});
 app.use((_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -334,6 +425,8 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
+
 
 
 
