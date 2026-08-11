@@ -15,6 +15,53 @@ const __dirname = path.dirname(__filename);
 const businessFile = path.join(__dirname, "data", "business.json");
 
 app.use(express.json());
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "change-this-password";
+
+function requireAdmin(req, res, next) {
+  const authHeader = req.headers.authorization || "";
+
+  if (!authHeader.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Admin Dashboard"');
+    return res.status(401).json({
+      ok: false,
+      error: "Admin authentication required"
+    });
+  }
+
+  const encoded = authHeader.slice(6);
+
+  try {
+    const decoded = Buffer.from(encoded, "base64").toString("utf8");
+    const separator = decoded.indexOf(":");
+
+    if (separator === -1) {
+      throw new Error("Invalid credentials");
+    }
+
+    const username = decoded.slice(0, separator);
+    const password = decoded.slice(separator + 1);
+
+    if (
+      username !== ADMIN_USER ||
+      password !== ADMIN_PASSWORD
+    ) {
+      res.setHeader("WWW-Authenticate", 'Basic realm="Admin Dashboard"');
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid admin credentials"
+      });
+    }
+
+    next();
+  } catch {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Admin Dashboard"');
+    return res.status(401).json({
+      ok: false,
+      error: "Invalid authentication"
+    });
+  }
+}
 app.use(express.static(path.join(__dirname, "public")));
 
 async function getBusiness() {
@@ -41,7 +88,7 @@ app.get("/api/health", async (_req, res) => {
   }
 });
 
-app.get("/api/business", async (_req, res) => {
+app.get("/api/business", requireAdmin, async (_req, res) => {
   try {
     const business = await getBusiness();
     res.json({
@@ -56,7 +103,7 @@ app.get("/api/business", async (_req, res) => {
   }
 });
 
-app.put("/api/business", async (req, res) => {
+app.put("/api/business", requireAdmin, async (req, res) => {
   try {
     const currentBusiness = await getBusiness();
     const updates = req.body || {};
@@ -287,4 +334,6 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
+
 
