@@ -411,6 +411,58 @@ app.patch("/api/leads/:id", requireAdmin, async (req, res) => {
     });
   }
 });
+app.get("/api/analytics", requireAdmin, async (_req, res) => {
+  try {
+    const leadsFile = path.join(__dirname, "data", "leads.json");
+
+    let leads = [];
+
+    try {
+      leads = JSON.parse(await fs.readFile(leadsFile, "utf8"));
+    } catch {
+      leads = [];
+    }
+
+    const total = leads.length;
+
+    const newLeads =
+      leads.filter((lead) => lead.status === "new").length;
+
+    const contacted =
+      leads.filter((lead) => lead.status === "contacted").length;
+
+    const converted =
+      leads.filter((lead) => lead.status === "converted").length;
+
+    const lost =
+      leads.filter((lead) => lead.status === "lost").length;
+
+    const conversionRate =
+      total > 0
+        ? Number(((converted / total) * 100).toFixed(2))
+        : 0;
+
+    res.json({
+      ok: true,
+      analytics: {
+        total,
+        new: newLeads,
+        contacted,
+        converted,
+        lost,
+        conversionRate
+      }
+    });
+
+  } catch (error) {
+    console.error("Analytics error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to load analytics"
+    });
+  }
+});
 app.use((_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -425,6 +477,7 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
 
 
 
