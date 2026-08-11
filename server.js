@@ -7,39 +7,66 @@ import fs from "fs/promises";
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT || 5000);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const businessFile = path.join(__dirname, "data", "business.json");
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-const business = {
-  name: "ABC Clinic",
-  hours: "9:00 AM to 8:00 PM",
-  services: [
-    "General Consultation",
-    "Dermatology",
-    "Dental Consultation"
-  ],
-  doctors: [
-    "Dr. Kumar - General Physician",
-    "Dr. Priya - Dermatologist",
-    "Dr. Arun - Dentist"
-  ]
-};
+async function getBusiness() {
+  const file = await fs.readFile(businessFile, "utf8");
+  return JSON.parse(file);
+}
 
-app.get("/api/health", (req, res) => {
-  res.json({
-    ok: true,
-    message: "AI Business Assistant is running",
-    mode: "demo"
-  });
+app.get("/api/health", async (_req, res) => {
+  try {
+    const business = await getBusiness();
+
+    res.json({
+      ok: true,
+      service: "AI Automation Consultant",
+      business: business.name,
+      mode: "demo",
+      clientConfig: true
+    });
+  } catch (error) {
+    res.status(500).json({
+      ok: false,
+      error: "Business configuration unavailable"
+    });
+  }
 });
 
-app.post("/api/chat", (req, res) => {
-  const message = String(req.body.message || "").toLowerCase();
+app.get("/api/business", async (_req, res) => {
+  try {
+    const business = await getBusiness();
+    res.json({
+      ok: true,
+      business
+    });
+  } catch {
+    res.status(500).json({
+      ok: false,
+      error: "Unable to load business configuration"
+    });
+  }
+});
+
+app.post("/api/chat", async (req, res) => {
+  const message = String(req.body.message || "").trim().toLowerCase();
+
+  if (!message) {
+    return res.status(400).json({
+      ok: false,
+      error: "Message is required"
+    });
+  }
+
+  const business = await getBusiness();
 
   let reply;
 
@@ -48,61 +75,101 @@ app.post("/api/chat", (req, res) => {
     message.includes("hi") ||
     message.includes("hey")
   ) {
-    reply = "Hello! 👋 Welcome to ABC Clinic. How can I help you today?";
-  } 
+    reply = `Hello! 👋 Welcome to ${business.name}. How can I help you today?`;
+  }
+
   else if (
     message.includes("opening") ||
     message.includes("hours") ||
     message.includes("timing") ||
     message.includes("open")
   ) {
-    reply = `ABC Clinic is open from ${business.hours}.`;
-  } 
+    reply =
+      `${business.name} is open Monday to Friday from ${business.workingHours.monday}, ` +
+      `Saturday ${business.workingHours.saturday}, and Sunday ${business.workingHours.sunday}.`;
+  }
+
   else if (
     message.includes("doctor") ||
     message.includes("specialist") ||
     message.includes("skin") ||
     message.includes("dermat")
   ) {
-    if (message.includes("skin") || message.includes("dermat")) {
-      reply =
-        "Our dermatologist is Dr. Priya. Would you like to make an appointment enquiry?";
+    const skinDoctor = business.doctors.find(
+      doctor => doctor.specialty.toLowerCase().includes("dermat")
+    );
+
+    if (
+      message.includes("skin") ||
+      message.includes("dermat")
+    ) {
+      reply = skinDoctor
+        ? `Our dermatologist is ${skinDoctor.name}. Would you like to make an appointment enquiry?`
+        : "Our dermatologist information is not available.";
     } else {
       reply =
-        "Our doctors are " + business.doctors.join(", ") + ".";
+        "Our doctors are " +
+        business.doctors
+          .map(doctor => `${doctor.name} - ${doctor.specialty}`)
+          .join(", ") +
+        ".";
     }
-  } 
+  }
+
   else if (
     message.includes("service") ||
     message.includes("treatment")
   ) {
     reply =
-      "We provide General Consultation, Dermatology and Dental Consultation. Which service are you interested in?";
-  } 
+      `We provide ${business.services.join(", ")}. Which service are you interested in?`;
+  }
+
   else if (
     message.includes("appointment") ||
     message.includes("book") ||
-    message.includes("booking")
+    message.includes("booking") ||
+    message.includes("schedule")
   ) {
-    reply =
-      "Sure! I can help with an appointment enquiry. Please provide your name and phone number.";
-  } 
+    reply = business.appointment.enabled
+      ? business.appointment.message
+      : "Online appointment enquiries are currently unavailable.";
+  }
+
   else if (
     message.includes("fee") ||
     message.includes("price") ||
     message.includes("cost")
   ) {
     reply =
-      "The consultation fee has not been configured yet. Our clinic staff can confirm the exact fee.";
-  } 
+      "Our consultation fee information is not configured yet. Please contact the clinic for the exact fee.";
+  }
+
+  else if (
+    message.includes("phone") ||
+    message.includes("contact")
+  ) {
+    reply =
+      `You can contact ${business.name} at ${business.phone}.`;
+  }
+
+  else if (
+    message.includes("address") ||
+    message.includes("location") ||
+    message.includes("where")
+  ) {
+    reply =
+      `${business.name} is located at ${business.address}.`;
+  }
+
   else {
     reply =
-      "I can help with doctors, services, opening hours and appointment enquiries. What would you like to know?";
+      `I can help you with ${business.services.join(", ")}, doctors, working hours and appointment enquiries. What would you like to know?`;
   }
 
   res.json({
     ok: true,
-    reply
+    reply,
+    client: business.id
   });
 });
 
@@ -118,10 +185,10 @@ app.post("/api/leads", async (req, res) => {
     });
   }
 
-  const dataDir = path.join(__dirname, "data");
-  const leadsFile = path.join(dataDir, "leads.json");
+  const dataDirectory = path.join(__dirname, "data");
+  const leadsFile = path.join(dataDirectory, "leads.json");
 
-  await fs.mkdir(dataDir, { recursive: true });
+  await fs.mkdir(dataDirectory, { recursive: true });
 
   let leads = [];
 
@@ -133,6 +200,7 @@ app.post("/api/leads", async (req, res) => {
 
   leads.push({
     id: Date.now().toString(),
+    clientId: (await getBusiness()).id,
     name,
     phone,
     requirement,
@@ -148,11 +216,11 @@ app.post("/api/leads", async (req, res) => {
 
   res.json({
     ok: true,
-    message: "Lead saved successfully."
+    message: "Enquiry received successfully."
   });
 });
 
-app.use((req, res) => {
+app.use((_req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
@@ -161,6 +229,7 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("AI AUTOMATION CONSULTANT");
   console.log("==========================================");
   console.log(`Local: http://localhost:${PORT}`);
+  console.log("Client Configuration: ENABLED");
   console.log("AI Mode: DEMO");
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
