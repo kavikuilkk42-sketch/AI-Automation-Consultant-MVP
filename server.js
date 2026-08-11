@@ -13,6 +13,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const businessFile = path.join(__dirname, "data", "business.json");
+const knowledgeFile = path.join(__dirname, "data", "knowledge.json");
 
 app.use(express.json());
 const ADMIN_USER = process.env.ADMIN_USER || "admin";
@@ -153,6 +154,259 @@ app.put("/api/business", requireAdmin, async (req, res) => {
     res.status(500).json({
       ok: false,
       error: "Unable to save business configuration"
+    });
+  }
+});
+app.get("/api/knowledge", requireAdmin, async (_req, res) => {
+  try {
+    let knowledge = [];
+
+    try {
+      knowledge = JSON.parse(
+        await fs.readFile(knowledgeFile, "utf8")
+      );
+    } catch {
+      knowledge = [];
+    }
+
+    res.json({
+      ok: true,
+      count: knowledge.length,
+      knowledge
+    });
+
+  } catch (error) {
+    console.error("Knowledge retrieval error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to load knowledge base"
+    });
+  }
+});
+app.post("/api/knowledge", requireAdmin, async (req, res) => {
+  try {
+    const question =
+      String(req.body.question || "").trim();
+
+    const answer =
+      String(req.body.answer || "").trim();
+
+    const category =
+      String(req.body.category || "general")
+        .trim()
+        .toLowerCase();
+
+    if (!question || !answer) {
+      return res.status(400).json({
+        ok: false,
+        error: "Question and answer are required"
+      });
+    }
+
+    let knowledge = [];
+
+    try {
+      knowledge = JSON.parse(
+        await fs.readFile(knowledgeFile, "utf8")
+      );
+    } catch {
+      knowledge = [];
+    }
+
+    const now = new Date().toISOString();
+
+    const entry = {
+      id: `kb_${Date.now()}`,
+      question,
+      answer,
+      category: category || "general",
+      active: true,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    knowledge.push(entry);
+
+    await fs.writeFile(
+      knowledgeFile,
+      JSON.stringify(knowledge, null, 2),
+      "utf8"
+    );
+
+    res.status(201).json({
+      ok: true,
+      message: "Knowledge entry created successfully",
+      knowledge: entry
+    });
+
+  } catch (error) {
+    console.error("Knowledge creation error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to create knowledge entry"
+    });
+  }
+});
+app.put("/api/knowledge/:id", requireAdmin, async (req, res) => {
+  try {
+    let knowledge = [];
+
+    try {
+      knowledge = JSON.parse(
+        await fs.readFile(knowledgeFile, "utf8")
+      );
+    } catch {
+      knowledge = [];
+    }
+
+    const knowledgeIndex = knowledge.findIndex(
+      (item) => String(item.id) === String(req.params.id)
+    );
+
+    if (knowledgeIndex === -1) {
+      return res.status(404).json({
+        ok: false,
+        error: "Knowledge entry not found"
+      });
+    }
+
+    const current = knowledge[knowledgeIndex];
+
+    const questionProvided =
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "question"
+      );
+
+    const answerProvided =
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "answer"
+      );
+
+    const categoryProvided =
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "category"
+      );
+
+    const activeProvided =
+      Object.prototype.hasOwnProperty.call(
+        req.body,
+        "active"
+      );
+
+    if (questionProvided) {
+      const question =
+        String(req.body.question || "").trim();
+
+      if (!question) {
+        return res.status(400).json({
+          ok: false,
+          error: "Question cannot be empty"
+        });
+      }
+
+      current.question = question;
+    }
+
+    if (answerProvided) {
+      const answer =
+        String(req.body.answer || "").trim();
+
+      if (!answer) {
+        return res.status(400).json({
+          ok: false,
+          error: "Answer cannot be empty"
+        });
+      }
+
+      current.answer = answer;
+    }
+
+    if (categoryProvided) {
+      current.category =
+        String(req.body.category || "general")
+          .trim()
+          .toLowerCase() || "general";
+    }
+
+    if (activeProvided) {
+      current.active =
+        Boolean(req.body.active);
+    }
+
+    current.updatedAt =
+      new Date().toISOString();
+
+    await fs.writeFile(
+      knowledgeFile,
+      JSON.stringify(knowledge, null, 2),
+      "utf8"
+    );
+
+    res.json({
+      ok: true,
+      message: "Knowledge entry updated successfully",
+      knowledge: current
+    });
+
+  } catch (error) {
+    console.error("Knowledge update error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to update knowledge entry"
+    });
+  }
+});
+app.delete("/api/knowledge/:id", requireAdmin, async (req, res) => {
+  try {
+    let knowledge = [];
+
+    try {
+      knowledge = JSON.parse(
+        await fs.readFile(knowledgeFile, "utf8")
+      );
+    } catch {
+      knowledge = [];
+    }
+
+    const knowledgeIndex = knowledge.findIndex(
+      (item) => String(item.id) === String(req.params.id)
+    );
+
+    if (knowledgeIndex === -1) {
+      return res.status(404).json({
+        ok: false,
+        error: "Knowledge entry not found"
+      });
+    }
+
+    const deletedKnowledge = knowledge[knowledgeIndex];
+
+    knowledge.splice(knowledgeIndex, 1);
+
+    await fs.writeFile(
+      knowledgeFile,
+      JSON.stringify(knowledge, null, 2),
+      "utf8"
+    );
+
+    res.json({
+      ok: true,
+      message: "Knowledge entry deleted successfully",
+      knowledge: deletedKnowledge
+    });
+
+  } catch (error) {
+    console.error("Knowledge deletion error:", error);
+
+    res.status(500).json({
+      ok: false,
+      error: "Unable to delete knowledge entry"
     });
   }
 });
@@ -498,4 +752,9 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
+
+
+
+
 
