@@ -1,0 +1,305 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABC Clinic - AI Receptionist</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f2f5f7;
+}
+
+.container {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 15px;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 35px rgba(0,0,0,.12);
+}
+
+.header {
+  background: #0f8f82;
+  color: white;
+  padding: 25px;
+}
+
+.header h1 {
+  margin: 0 0 5px;
+}
+
+.header p {
+  margin: 0;
+}
+
+.chat {
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+}
+
+.messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.message {
+  max-width: 75%;
+  padding: 12px 15px;
+  margin: 10px 0;
+  border-radius: 14px;
+  line-height: 1.4;
+}
+
+.bot {
+  background: #edf1f4;
+}
+
+.user {
+  margin-left: auto;
+  background: #0f8f82;
+  color: white;
+}
+
+.input-area {
+  display: flex;
+  gap: 10px;
+  padding: 15px;
+  border-top: 1px solid #ddd;
+}
+
+.input-area input {
+  flex: 1;
+  padding: 14px;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 16px;
+}
+
+button {
+  border: none;
+  border-radius: 10px;
+  padding: 12px 20px;
+  background: #0f8f82;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.lead {
+  padding: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.lead input {
+  width: 100%;
+  padding: 12px;
+  margin: 5px 0;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+.lead button {
+  width: 100%;
+  margin-top: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+
+<div class="header">
+<h1>🤖 ABC Clinic</h1>
+<p>AI Receptionist & Lead Capture</p>
+</div>
+
+<div class="chat">
+
+<div id="messages" class="messages">
+
+<div class="message bot">
+Hello! 👋 Welcome to ABC Clinic. How can I help you today?
+</div>
+
+</div>
+
+<div class="input-area">
+
+<input
+id="messageInput"
+placeholder="Type your question..."
+>
+
+<button onclick="sendMessage()">Send</button>
+
+</div>
+
+</div>
+
+<div class="lead">
+
+<h2>Request a Callback</h2>
+
+<input id="name" placeholder="Your Name">
+
+<input id="phone" placeholder="Phone Number">
+
+<input id="requirement" placeholder="What do you need?">
+
+<button onclick="submitLead()">
+Submit Enquiry
+</button>
+
+<p id="leadResult"></p>
+
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const messages = document.getElementById("messages");
+
+function addMessage(text, type) {
+
+  const div = document.createElement("div");
+
+  div.className = "message " + type;
+
+  div.textContent = text;
+
+  messages.appendChild(div);
+
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function sendMessage() {
+
+  const input = document.getElementById("messageInput");
+
+  const text = input.value.trim();
+
+  if (!text) return;
+
+  addMessage(text, "user");
+
+  input.value = "";
+
+  try {
+
+    const response = await fetch("/api/chat", {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        message: text
+      })
+
+    });
+
+    const data = await response.json();
+
+    addMessage(data.reply, "bot");
+
+  } catch (error) {
+
+    addMessage(
+      "Sorry, the assistant is temporarily unavailable.",
+      "bot"
+    );
+
+  }
+}
+
+document
+.getElementById("messageInput")
+.addEventListener("keydown", function(event) {
+
+  if (event.key === "Enter") {
+    sendMessage();
+  }
+
+});
+
+async function submitLead() {
+
+  const name =
+    document.getElementById("name").value.trim();
+
+  const phone =
+    document.getElementById("phone").value.trim();
+
+  const requirement =
+    document.getElementById("requirement").value.trim();
+
+  const result =
+    document.getElementById("leadResult");
+
+  if (!name || !phone) {
+
+    result.textContent =
+      "Please enter your name and phone number.";
+
+    return;
+  }
+
+  try {
+
+    const response = await fetch("/api/leads", {
+
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify({
+        name,
+        phone,
+        requirement
+      })
+
+    });
+
+    const data = await response.json();
+
+    result.textContent =
+      data.ok
+      ? "✅ Enquiry received successfully!"
+      : "Unable to save enquiry.";
+
+  } catch {
+
+    result.textContent =
+      "Unable to save enquiry.";
+
+  }
+
+}
+
+</script>
+
+</body>
+</html>
