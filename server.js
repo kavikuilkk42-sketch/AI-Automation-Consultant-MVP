@@ -70,6 +70,74 @@ async function getBusiness() {
   return JSON.parse(file);
 }
 
+async function getKnowledge() {
+  try {
+    const file = await fs.readFile(knowledgeFile, "utf8");
+    const knowledge = JSON.parse(file);
+
+    return Array.isArray(knowledge)
+      ? knowledge.filter(item => item.active === true)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function findBestKnowledgeMatch(message, knowledge) {
+  const normalizedMessage =
+    String(message || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .trim();
+
+  if (!normalizedMessage || !Array.isArray(knowledge)) {
+    return null;
+  }
+
+  const messageWords =
+    new Set(
+      normalizedMessage
+        .split(/\s+/)
+        .filter(word => word.length >= 3)
+    );
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const item of knowledge) {
+    const normalizedQuestion =
+      String(item.question || "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .trim();
+
+    if (!normalizedQuestion) {
+      continue;
+    }
+
+    const questionWords =
+      new Set(
+        normalizedQuestion
+          .split(/\s+/)
+          .filter(word => word.length >= 3)
+      );
+
+    let score = 0;
+
+    for (const word of messageWords) {
+      if (questionWords.has(word)) {
+        score += 1;
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = item;
+    }
+  }
+
+  return bestScore >= 2 ? bestMatch : null;
+}
 app.get("/api/health", async (_req, res) => {
   try {
     const business = await getBusiness();
@@ -422,9 +490,25 @@ app.post("/api/chat", async (req, res) => {
 
   const business = await getBusiness();
 
-  let reply;
+const knowledge =
+  await getKnowledge();
 
-  if (
+const knowledgeMatch =
+  findBestKnowledgeMatch(
+    message,
+    knowledge
+  );
+
+let reply;
+
+if (
+  knowledgeMatch &&
+  knowledgeMatch.answer
+) {
+  reply =
+    knowledgeMatch.answer;
+}
+else if (
     message.includes("hello") ||
     message.includes("hi") ||
     message.includes("hey")
@@ -752,6 +836,10 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
+
+
+
 
 
 
