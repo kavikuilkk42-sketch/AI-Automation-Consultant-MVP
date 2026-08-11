@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard - AI Automation Consultant</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#f4f7f9;
+  color:#172033;
+}
+.container{
+  max-width:1000px;
+  margin:35px auto;
+  padding:20px;
+}
+.card{
+  background:#fff;
+  border-radius:18px;
+  padding:28px;
+  box-shadow:0 10px 35px rgba(0,0,0,.08);
+}
+h1{margin-top:0}
+.subtitle{color:#687386;margin-bottom:25px}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+.field{
+  display:flex;
+  flex-direction:column;
+}
+.field.full{grid-column:1/-1}
+label{
+  font-weight:bold;
+  margin-bottom:7px;
+}
+input,textarea,select{
+  padding:12px;
+  border:1px solid #ccd3dd;
+  border-radius:9px;
+  font-size:15px;
+}
+textarea{
+  min-height:100px;
+  resize:vertical;
+}
+button{
+  margin-top:25px;
+  padding:13px 22px;
+  border:0;
+  border-radius:10px;
+  background:#0f8f82;
+  color:#fff;
+  font-weight:bold;
+  cursor:pointer;
+}
+#status{
+  margin-top:15px;
+  font-weight:bold;
+}
+@media(max-width:700px){
+  .grid{grid-template-columns:1fr}
+  .field.full{grid-column:auto}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="card">
+
+<h1>⚙️ Admin Dashboard</h1>
+
+<div class="subtitle">
+Client Business Configuration
+</div>
+
+<form id="businessForm">
+
+<div class="grid">
+
+<div class="field">
+<label>Business Name</label>
+<input id="name" required>
+</div>
+
+<div class="field">
+<label>Business Type</label>
+<input id="businessType">
+</div>
+
+<div class="field">
+<label>Phone</label>
+<input id="phone">
+</div>
+
+<div class="field">
+<label>Email</label>
+<input id="email">
+</div>
+
+<div class="field full">
+<label>Address</label>
+<input id="address">
+</div>
+
+<div class="field">
+<label>Monday - Friday</label>
+<input id="weekday">
+</div>
+
+<div class="field">
+<label>Saturday</label>
+<input id="saturday">
+</div>
+
+<div class="field">
+<label>Sunday</label>
+<input id="sunday">
+</div>
+
+<div class="field full">
+<label>Tagline</label>
+<input id="tagline">
+</div>
+
+</div>
+
+<button type="submit">
+Save Business Configuration
+</button>
+
+<div id="status"></div>
+
+</form>
+
+</div>
+
+</div>
+
+<script>
+
+async function loadBusiness(){
+
+  try{
+
+    const response =
+      await fetch("/api/business");
+
+    const data =
+      await response.json();
+
+    if(!data.ok){
+      throw new Error(data.error);
+    }
+
+    const b = data.business;
+
+    document.getElementById("name").value =
+      b.name || "";
+
+    document.getElementById("businessType").value =
+      b.businessType || "";
+
+    document.getElementById("phone").value =
+      b.phone || "";
+
+    document.getElementById("email").value =
+      b.email || "";
+
+    document.getElementById("address").value =
+      b.address || "";
+
+    document.getElementById("tagline").value =
+      b.tagline || "";
+
+    document.getElementById("weekday").value =
+      b.workingHours?.monday || "";
+
+    document.getElementById("saturday").value =
+      b.workingHours?.saturday || "";
+
+    document.getElementById("sunday").value =
+      b.workingHours?.sunday || "";
+
+  }catch(error){
+
+    document.getElementById("status").textContent =
+      "Unable to load business configuration.";
+
+  }
+
+}
+
+document
+.getElementById("businessForm")
+.addEventListener("submit",async function(event){
+
+  event.preventDefault();
+
+  const payload = { name: document.getElementById("name").value.trim(), businessType: document.getElementById("businessType").value.trim(), phone: document.getElementById("phone").value.trim(), email: document.getElementById("email").value.trim(), address: document.getElementById("address").value.trim(), tagline: document.getElementById("tagline").value.trim(), workingHours: { monday: document.getElementById("weekday").value.trim(), saturday: document.getElementById("saturday").value.trim(), sunday: document.getElementById("sunday").value.trim() } }; try { const response = await fetch("/api/business", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const data = await response.json(); document.getElementById("status").textContent = data.ok ? "✅ Business configuration saved successfully." : "❌ " + (data.error || "Save failed."); } catch (error) { document.getElementById("status").textContent = "❌ Unable to save configuration."; }
+
+});
+
+loadBusiness();
+
+</script>
+
+</body>
+</html>
+
+
