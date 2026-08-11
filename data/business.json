@@ -1,0 +1,55 @@
+{
+  "id": "abc-clinic",
+  "name": "ABC Clinic",
+  "businessType": "Clinic",
+  "tagline": "AI Receptionist & Lead Capture",
+  "phone": "+91 9000000000",
+  "email": "info@abcclinic.com",
+  "address": "Chennai, Tamil Nadu",
+  "workingHours": {
+    "monday": "11:00 AM - 6:00 PM",
+    "tuesday": "9:00 AM - 8:00 PM",
+    "wednesday": "9:00 AM - 8:00 PM",
+    "thursday": "9:00 AM - 8:00 PM",
+    "friday": "9:00 AM - 8:00 PM",
+    "saturday": "9:00 AM - 6:00 PM",
+    "sunday": "Closed"
+  },
+  "services": [
+    "General Consultation",
+    "Dermatology",
+    "Dental Consultation"
+  ],
+  "doctors": [
+    {
+      "name": "Dr. Kumar",
+      "specialty": "General Physician"
+    },
+    {
+      "name": "Dr. Priya",
+      "specialty": "Dermatologist"
+    },
+    {
+      "name": "Dr. Arun",
+      "specialty": "Dentist"
+    }
+  ],
+  "faq": [
+    {
+      "question": "What are your opening hours?",
+      "answer": "ABC Clinic is open Monday to Friday from 9:00 AM to 8:00 PM, Saturday from 9:00 AM to 6:00 PM and closed on Sunday."
+    },
+    {
+      "question": "What services do you provide?",
+      "answer": "We provide General Consultation, Dermatology and Dental Consultation."
+    }
+  ],
+  "appointment": {
+    "enabled": true,
+    "message": "Please provide your name and phone number. Our staff will confirm availability."
+  },
+  "whatsapp": {
+    "enabled": false,
+    "number": ""
+  }
+}
