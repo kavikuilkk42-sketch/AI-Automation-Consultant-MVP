@@ -83,6 +83,29 @@ async function getKnowledge() {
   }
 }
 
+function normalizeKnowledgeWord(word) {
+  const value = String(word || "")
+    .toLowerCase()
+    .trim();
+
+  if (value.length <= 3) {
+    return value;
+  }
+
+  if (value.endsWith("ies")) {
+    return value.slice(0, -3) + "y";
+  }
+
+  if (value.endsWith("es")) {
+    return value.slice(0, -2);
+  }
+
+  if (value.endsWith("s")) {
+    return value.slice(0, -1);
+  }
+
+  return value;
+}
 function findBestKnowledgeMatch(message, knowledge) {
   const normalizedMessage =
     String(message || "")
@@ -99,6 +122,7 @@ function findBestKnowledgeMatch(message, knowledge) {
       normalizedMessage
         .split(/\s+/)
         .filter(word => word.length >= 3)
+        .map(normalizeKnowledgeWord)
     );
 
   let bestMatch = null;
@@ -120,6 +144,7 @@ function findBestKnowledgeMatch(message, knowledge) {
         normalizedQuestion
           .split(/\s+/)
           .filter(word => word.length >= 3)
+          .map(normalizeKnowledgeWord)
       );
 
     let score = 0;
@@ -836,13 +861,4 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
-
-
-
-
-
-
-
-
-
 
