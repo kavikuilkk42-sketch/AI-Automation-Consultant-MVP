@@ -227,7 +227,9 @@ Save Business Configuration
           <th style="padding:12px;">Requirement</th>
           <th style="padding:12px;">Date</th>
           <th style="padding:12px;">Status</th>
-<th style="padding:12px;">Actions</th>
+          <th style="padding:12px;">Notes</th>
+          <th style="padding:12px;">Follow-up</th>
+          <th style="padding:12px;">Actions</th>
         </tr>
       </thead>
       <tbody id="leadsTableBody">
@@ -284,6 +286,66 @@ async function loadAnalytics() {
   }
 }
 
+async function saveLeadFollowUp(leadId) {
+  const notesInput =
+    document.getElementById(`notes-${leadId}`);
+
+  const followUpInput =
+    document.getElementById(`followUp-${leadId}`);
+
+  const lead =
+    allLeads.find(
+      (item) => String(item.id) === String(leadId)
+    );
+
+  if (!lead) {
+    document.getElementById("leadsStatus").textContent =
+      "❌ Lead not found.";
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `/api/leads/${encodeURIComponent(leadId)}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          status: lead.status || "new",
+          notes: notesInput?.value || "",
+          followUpDate: followUpInput?.value || ""
+        })
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok) {
+      throw new Error(
+        data.error || "Unable to save lead follow-up"
+      );
+    }
+
+    const index =
+      allLeads.findIndex(
+        (item) => String(item.id) === String(leadId)
+      );
+
+    if (index !== -1) {
+      allLeads[index] = data.lead;
+    }
+
+    document.getElementById("leadsStatus").textContent =
+      "✅ Notes and follow-up saved successfully.";
+
+  } catch (error) {
+
+    document.getElementById("leadsStatus").textContent =
+      "❌ " + error.message;
+  }
+}
 async function updateLeadStatus(leadId, status) {
   try {
     const response = await fetch(`/api/leads/${encodeURIComponent(leadId)}`, {
@@ -299,6 +361,17 @@ async function updateLeadStatus(leadId, status) {
     if (!response.ok || !data.ok) {
       throw new Error(data.error || "Unable to update lead status");
     }
+
+    const index =
+      allLeads.findIndex(
+        (item) => String(item.id) === String(leadId)
+      );
+
+    if (index !== -1) {
+      allLeads[index] = data.lead;
+    }
+
+    renderLeads();
 
     document.getElementById("leadsStatus").textContent =
       "✅ Lead status updated successfully.";
@@ -393,7 +466,31 @@ function renderLeads() {
               </select>
             </td>
 
+            <td style="padding:12px;min-width:220px;">
+              <textarea
+                id="notes-${escapeHtml(lead.id)}"
+                rows="2"
+                placeholder="Add notes..."
+                style="width:100%;padding:8px;border:1px solid #ccd3dd;border-radius:8px;resize:vertical;"
+              >${escapeHtml(lead.notes || "")}</textarea>
+            </td>
+
+            <td style="padding:12px;min-width:150px;">
+              <input
+                id="followUp-${escapeHtml(lead.id)}"
+                type="date"
+                value="${escapeHtml(lead.followUpDate || "")}"
+                style="width:100%;padding:8px;border:1px solid #ccd3dd;border-radius:8px;"
+              >
+            </td>
+
             <td style="padding:12px;white-space:nowrap;">
+
+              <button
+                type="button"
+                onclick="saveLeadFollowUp('${escapeHtml(lead.id)}')"
+                style="margin:0;margin-right:6px;padding:7px 10px;border:0;border-radius:8px;background:#0f8f82;color:#fff;font-weight:bold;cursor:pointer;"
+              >💾 Save</button>
 
               <a
                 href="tel:${escapeHtml(lead.phone)}"
@@ -544,20 +641,4 @@ loadAnalytics();
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

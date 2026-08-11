@@ -356,15 +356,29 @@ app.patch("/api/leads/:id", requireAdmin, async (req, res) => {
     ];
 
     const status = String(req.body.status || "")
-      .trim()
-      .toLowerCase();
+  .trim()
+  .toLowerCase();
 
-    if (!allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        ok: false,
-        error: "Invalid lead status"
-      });
-    }
+if (!allowedStatuses.includes(status)) {
+  return res.status(400).json({
+    ok: false,
+    error: "Invalid lead status"
+  });
+}
+
+const notesProvided =
+  Object.prototype.hasOwnProperty.call(req.body, "notes");
+
+const followUpDateProvided =
+  Object.prototype.hasOwnProperty.call(req.body, "followUpDate");
+
+const notes = notesProvided
+  ? String(req.body.notes || "").trim()
+  : null;
+
+const followUpDate = followUpDateProvided
+  ? String(req.body.followUpDate || "").trim()
+  : null;
 
     const leadsFile = path.join(__dirname, "data", "leads.json");
 
@@ -388,7 +402,14 @@ app.patch("/api/leads/:id", requireAdmin, async (req, res) => {
     }
 
     leads[leadIndex].status = status;
-    leads[leadIndex].updatedAt = new Date().toISOString();
+if (notesProvided) {
+  leads[leadIndex].notes = notes;
+}
+
+if (followUpDateProvided) {
+  leads[leadIndex].followUpDate = followUpDate;
+}
+leads[leadIndex].updatedAt = new Date().toISOString();
 
     await fs.writeFile(
       leadsFile,
@@ -477,9 +498,4 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
-
-
-
-
-
 
