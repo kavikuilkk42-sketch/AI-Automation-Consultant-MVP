@@ -157,6 +157,7 @@ Save Business Configuration
           <th style="padding:12px;">Requirement</th>
           <th style="padding:12px;">Date</th>
           <th style="padding:12px;">Status</th>
+<th style="padding:12px;">Actions</th>
         </tr>
       </thead>
       <tbody id="leadsTableBody">
@@ -238,6 +239,19 @@ async function loadLeads() {
   <option value="converted" ${lead.status === "converted" ? "selected" : ""}>Converted</option>
   <option value="lost" ${lead.status === "lost" ? "selected" : ""}>Lost</option>
 </select></td>
+          <td style="padding:12px;white-space:nowrap;">
+            <a
+              href="tel:${escapeHtml(lead.phone)}"
+              style="display:inline-block;margin-right:6px;padding:7px 10px;border-radius:8px;background:#0f8f82;color:#fff;text-decoration:none;font-weight:bold;"
+            >📞 Call</a>
+
+            <a
+              href="https://wa.me/${escapeHtml(lead.phone).replace(/^0/, "91")}"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="display:inline-block;padding:7px 10px;border-radius:8px;background:#25D366;color:#fff;text-decoration:none;font-weight:bold;"
+            >💬 WhatsApp</a>
+          </td>
         </tr>
       `;
     }).join("");
@@ -328,6 +342,8 @@ loadLeads();
 
 </body>
 </html>
+
+
 
 
 
