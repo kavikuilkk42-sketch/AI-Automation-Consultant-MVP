@@ -10,6 +10,14 @@ import {
   createWhatsAppReply
 } from "./services/whatsapp.js";
 
+import {
+  getLeadSession,
+  startLeadCapture,
+  completeLeadCapture,
+  createLeadPayload,
+  clearLeadSession
+} from "./services/whatsappLead.js";
+
 dotenv.config();
 
 const app = express();
@@ -900,6 +908,131 @@ app.post("/api/whatsapp/webhook", async (req, res) => {
   }
 
   try {
+    const phone = String(payload.from || "").trim();
+    const message = String(payload.message || "").trim();
+
+    if (!phone || !message) {
+      return res.status(400).json({
+        ok: false,
+        error: "WhatsApp sender and message are required"
+      });
+    }
+
+    /*
+     * NEW:
+     * Handle an already-active WhatsApp lead conversation.
+     * Normal WhatsApp messages continue to the existing /api/chat flow below.
+     */
+    const leadSession = getLeadSession(phone);
+
+    if (
+      leadSession &&
+      leadSession.state === "awaiting_name"
+    ) {
+      leadSession.name = message;
+      leadSession.state = "awaiting_requirement";
+
+      const whatsappReply = createWhatsAppReply(
+        phone,
+        `Thanks ${message}! What would you like help with?`
+      );
+
+      return res.json({
+        ok: true,
+        channel: "whatsapp",
+        to: whatsappReply.to,
+        reply: whatsappReply.message
+      });
+    }
+
+    if (
+      leadSession &&
+      leadSession.state === "awaiting_requirement"
+    ) {
+      const completedSession =
+        completeLeadCapture(
+          phone,
+          leadSession.name,
+          message
+        );
+
+      const leadPayload =
+        createLeadPayload(completedSession);
+
+      if (!leadPayload) {
+        clearLeadSession(phone);
+
+        return res.status(400).json({
+          ok: false,
+          error: "Unable to create WhatsApp lead"
+        });
+      }
+
+      const leadResponse = await fetch(
+        `http://127.0.0.1:${PORT}/api/leads`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(leadPayload)
+        }
+      );
+
+      const leadResult =
+        await leadResponse.json();
+
+      clearLeadSession(phone);
+
+      if (!leadResponse.ok || !leadResult.ok) {
+        return res.status(502).json({
+          ok: false,
+          error: "Unable to save WhatsApp lead"
+        });
+      }
+
+      const whatsappReply = createWhatsAppReply(
+        phone,
+        "Thank you! Your enquiry has been received. Our team will contact you shortly."
+      );
+
+      return res.json({
+        ok: true,
+        channel: "whatsapp",
+        to: whatsappReply.to,
+        reply: whatsappReply.message
+      });
+    }
+
+    /*
+     * NEW:
+     * Start lead capture only for explicit contact/enquiry intent.
+     * Generic FAQ messages continue through the existing chatbot.
+     */
+    const leadIntent =
+      /\b(contact me|please contact|call me|please call|i am interested|i'm interested|want to hire|need someone to contact|need someone to call|need your service|need your services)\b/i
+        .test(message);
+
+    if (leadIntent) {
+      startLeadCapture(phone);
+
+      const whatsappReply = createWhatsAppReply(
+        phone,
+        "Sure! I'd be happy to help. May I know your name?"
+      );
+
+      return res.json({
+        ok: true,
+        channel: "whatsapp",
+        to: whatsappReply.to,
+        reply: whatsappReply.message
+      });
+    }
+
+    /*
+     * EXISTING FLOW:
+     * Normal WhatsApp messages continue to /api/chat unchanged.
+     */
     const chatResponse = await fetch(
       `http://127.0.0.1:${PORT}/api/chat`,
       {
@@ -908,12 +1041,13 @@ app.post("/api/whatsapp/webhook", async (req, res) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          message: payload.message
+          message
         })
       }
     );
 
-    const chatResult = await chatResponse.json();
+    const chatResult =
+      await chatResponse.json();
 
     if (!chatResponse.ok || !chatResult.ok) {
       return res.status(502).json({
@@ -923,7 +1057,7 @@ app.post("/api/whatsapp/webhook", async (req, res) => {
     }
 
     const whatsappReply = createWhatsAppReply(
-      payload.from,
+      phone,
       chatResult.reply
     );
 
@@ -933,6 +1067,7 @@ app.post("/api/whatsapp/webhook", async (req, res) => {
       to: whatsappReply.to,
       reply: whatsappReply.message
     });
+
   } catch (error) {
     console.error("WhatsApp webhook error:", error);
 
