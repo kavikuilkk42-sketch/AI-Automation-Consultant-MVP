@@ -4,6 +4,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
 import { generateAIResponse } from "./services/llm.js";
+import {
+  normalizeWhatsAppMessage,
+  createWhatsAppReply
+} from "./services/whatsapp.js";
 
 dotenv.config();
 
@@ -854,6 +858,60 @@ leads[leadIndex].updatedAt = new Date().toISOString();
     });
   }
 });
+app.post("/api/whatsapp/webhook", async (req, res) => {
+  const payload = normalizeWhatsAppMessage(req.body);
+
+  if (!payload) {
+    return res.status(400).json({
+      ok: false,
+      error: "Invalid WhatsApp message payload"
+    });
+  }
+
+  try {
+    const chatResponse = await fetch(
+      `http://127.0.0.1:${PORT}/api/chat`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message: payload.message
+        })
+      }
+    );
+
+    const chatResult = await chatResponse.json();
+
+    if (!chatResponse.ok || !chatResult.ok) {
+      return res.status(502).json({
+        ok: false,
+        error: "Unable to process WhatsApp message"
+      });
+    }
+
+    const whatsappReply = createWhatsAppReply(
+      payload.from,
+      chatResult.reply
+    );
+
+    return res.json({
+      ok: true,
+      channel: "whatsapp",
+      to: whatsappReply.to,
+      reply: whatsappReply.message
+    });
+  } catch (error) {
+    console.error("WhatsApp webhook error:", error);
+
+    return res.status(502).json({
+      ok: false,
+      error: "Unable to process WhatsApp message"
+    });
+  }
+});
+
 app.get("/api/analytics", requireAdmin, async (_req, res) => {
   try {
     const leadsFile = path.join(__dirname, "data", "leads.json");
