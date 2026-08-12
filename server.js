@@ -555,6 +555,16 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 
+  const secretRequest =
+    /\b(openai[_\s-]?api[_\s-]?key|ollama[_\s-]?base[_\s-]?url|ollama[_\s-]?model|admin[_\s-]?password|api[_\s-]?key|secret|password)\b/i.test(message) ||
+    message.includes(".env");
+
+  if (secretRequest) {
+    return res.json({
+      ok: true,
+      reply: "I can't provide passwords, API keys, secrets, or internal configuration information."
+    });
+  }
   const business = await getBusiness();
 
 const knowledge =
