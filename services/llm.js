@@ -3,9 +3,6 @@
 const baseUrl = process.env.OLLAMA_BASE_URL;
 const model = process.env.OLLAMA_MODEL || "gemma3:4b";
 
-if (!baseUrl) {
-  throw new Error("OLLAMA_BASE_URL is not configured.");
-}
 
 export async function generateAIResponse({
   message,
