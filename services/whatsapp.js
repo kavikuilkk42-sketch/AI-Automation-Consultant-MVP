@@ -1,4 +1,4 @@
-﻿function normalizeWhatsAppMessage(payload) {
+function normalizeWhatsAppMessage(payload) {
   if (!payload || typeof payload !== "object") {
     return null;
   }
@@ -16,6 +16,31 @@
   };
 }
 
+function normalizeMetaWhatsAppMessage(payload) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const message =
+    payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+
+  if (!message || message.type !== "text") {
+    return null;
+  }
+
+  const from = String(message.from || "").trim();
+  const text = String(message.text?.body || "").trim();
+
+  if (!from || !text) {
+    return null;
+  }
+
+  return {
+    from,
+    message: text
+  };
+}
+
 function createWhatsAppReply(from, reply) {
   return {
     to: String(from || "").trim(),
@@ -25,5 +50,6 @@ function createWhatsAppReply(from, reply) {
 
 export {
   normalizeWhatsAppMessage,
+  normalizeMetaWhatsAppMessage,
   createWhatsAppReply
 };

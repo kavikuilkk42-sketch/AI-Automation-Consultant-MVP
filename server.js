@@ -6,6 +6,7 @@ import fs from "fs/promises";
 import { generateAIResponse } from "./services/llm.js";
 import {
   normalizeWhatsAppMessage,
+  normalizeMetaWhatsAppMessage,
   createWhatsAppReply
 } from "./services/whatsapp.js";
 
@@ -858,8 +859,38 @@ leads[leadIndex].updatedAt = new Date().toISOString();
     });
   }
 });
+app.get("/api/whatsapp/webhook", (req, res) => {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+
+  if (!verifyToken) {
+    return res.status(503).json({
+      ok: false,
+      error: "WhatsApp webhook verification is not configured"
+    });
+  }
+
+  const mode = String(req.query["hub.mode"] || "").trim();
+  const token = String(req.query["hub.verify_token"] || "").trim();
+  const challenge = String(req.query["hub.challenge"] || "").trim();
+
+  if (
+    mode !== "subscribe" ||
+    token !== verifyToken ||
+    !challenge
+  ) {
+    return res.status(403).json({
+      ok: false,
+      error: "Webhook verification failed"
+    });
+  }
+
+  return res.status(200).send(challenge);
+});
 app.post("/api/whatsapp/webhook", async (req, res) => {
-  const payload = normalizeWhatsAppMessage(req.body);
+  const payload =
+    req.body?.entry?.[0]?.changes?.[0]?.value?.messages
+      ? normalizeMetaWhatsAppMessage(req.body)
+      : normalizeWhatsAppMessage(req.body);
 
   if (!payload) {
     return res.status(400).json({
