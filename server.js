@@ -675,8 +675,7 @@ reply = aiResult.reply;
 } catch (error) {
 console.error("LLM fallback error:", error);
 
-reply =
-`I can help you with ${business.services.join(", ")}, doctors, working hours and appointment enquiries. What would you like to know?`;
+reply = "I don't have enough information to answer that right now. Please contact the business for assistance.";
 }
 }
 res.json({
