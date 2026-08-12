@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "ai-automation-consultant-mvp",
   "version": "1.0.0",
   "private": true,
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "openai": "^7.4.0"
   }
 }
