@@ -84,6 +84,42 @@ async function getKnowledge() {
   }
 }
 
+function isKnowledgeStopWord(word) {
+  const stopWords = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "can",
+    "could",
+    "do",
+    "does",
+    "for",
+    "how",
+    "i",
+    "is",
+    "me",
+    "my",
+    "of",
+    "please",
+    "tell",
+    "the",
+    "to",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "would",
+    "you",
+    "your"
+  ]);
+
+  return stopWords.has(
+    normalizeKnowledgeWord(word)
+  );
+}
 function normalizeKnowledgeWord(word) {
   const value = String(word || "")
     .toLowerCase()
@@ -97,11 +133,11 @@ function normalizeKnowledgeWord(word) {
     return value.slice(0, -3) + "y";
   }
 
-  if (value.endsWith("es")) {
-    return value.slice(0, -2);
+  if (value === "services") {
+    return "service";
   }
 
-  if (value.endsWith("s")) {
+  if (value.endsWith("s") && !value.endsWith("ss")) {
     return value.slice(0, -1);
   }
 
@@ -124,6 +160,7 @@ function findBestKnowledgeMatch(message, knowledge) {
         .split(/\s+/)
         .filter(word => word.length >= 3)
         .map(normalizeKnowledgeWord)
+      .filter(word => !isKnowledgeStopWord(word))
     );
 
   let bestMatch = null;
@@ -146,6 +183,7 @@ let secondBestScore = 0;
           .split(/\s+/)
           .filter(word => word.length >= 3)
           .map(normalizeKnowledgeWord)
+      .filter(word => !isKnowledgeStopWord(word))
       );
 
     let score = 0;
@@ -873,9 +911,4 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
-
-
-
-
-
 
