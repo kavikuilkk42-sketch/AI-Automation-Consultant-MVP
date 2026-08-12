@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs/promises";
+import { generateAIResponse } from "./services/llm.js";
 
 dotenv.config();
 
@@ -537,9 +538,7 @@ if (
     knowledgeMatch.answer;
 }
 else if (
-    message.includes("hello") ||
-    message.includes("hi") ||
-    message.includes("hey")
+    /\b(hello|hi|hey)\b/.test(message)
   ) {
     reply = `Hello! 👋 Welcome to ${business.name}. How can I help you today?`;
   }
@@ -626,13 +625,23 @@ else if (
     reply =
       `${business.name} is located at ${business.address}.`;
   }
+else {
+try {
+const aiResult = await generateAIResponse({
+message,
+business,
+knowledge
+});
 
-  else {
-    reply =
-      `I can help you with ${business.services.join(", ")}, doctors, working hours and appointment enquiries. What would you like to know?`;
-  }
+reply = aiResult.reply;
+} catch (error) {
+console.error("LLM fallback error:", error);
 
-  res.json({
+reply =
+`I can help you with ${business.services.join(", ")}, doctors, working hours and appointment enquiries. What would you like to know?`;
+}
+}
+res.json({
     ok: true,
     reply,
     client: business.id
@@ -864,4 +873,9 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
+
+
+
+
+
 
