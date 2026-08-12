@@ -126,8 +126,8 @@ function findBestKnowledgeMatch(message, knowledge) {
     );
 
   let bestMatch = null;
-  let bestScore = 0;
-
+let bestScore = 0;
+let secondBestScore = 0;
   for (const item of knowledge) {
     const normalizedQuestion =
       String(item.question || "")
@@ -156,12 +156,15 @@ function findBestKnowledgeMatch(message, knowledge) {
     }
 
     if (score > bestScore) {
+      secondBestScore = bestScore;
       bestScore = score;
       bestMatch = item;
+    } else if (score > secondBestScore) {
+      secondBestScore = score;
     }
   }
 
-  return bestScore >= 2 ? bestMatch : null;
+  return bestScore >= 2 && bestScore > secondBestScore ? bestMatch : null;
 }
 app.get("/api/health", async (_req, res) => {
   try {
