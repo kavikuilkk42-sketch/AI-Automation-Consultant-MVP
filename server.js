@@ -156,6 +156,88 @@ function normalizeKnowledgeWord(word) {
 
   return value;
 }
+function isBusinessRelevantMessage(message, business) {
+  const normalizedMessage =
+    String(message || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .trim();
+
+  if (!normalizedMessage) {
+    return false;
+  }
+
+  const words =
+    normalizedMessage
+      .split(/\s+/)
+      .filter(word => word.length >= 4)
+      .map(normalizeKnowledgeWord)
+      .filter(word => !isKnowledgeStopWord(word));
+
+  if (words.length === 0) {
+    return false;
+  }
+
+  const businessTerms = new Set([
+    "business",
+    "service",
+    "services",
+    "consultation",
+    "consulting",
+    "appointment",
+    "booking",
+    "doctor",
+    "doctors",
+    "specialist",
+    "treatment",
+    "clinic",
+    "company",
+    "contact",
+    "price",
+    "pricing",
+    "cost",
+    "fee",
+    "location",
+    "address",
+    "automation",
+    "chatbot",
+    "workflow",
+    "process",
+    "support",
+    "customer",
+    "client",
+    "enquiry",
+    "lead"
+  ]);
+
+  const addTextTerms = (value) => {
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter(word => word.length >= 4)
+      .map(normalizeKnowledgeWord)
+      .forEach(word => businessTerms.add(word));
+  };
+
+  addTextTerms(business?.name);
+  addTextTerms(business?.address);
+  addTextTerms(business?.phone);
+
+  if (Array.isArray(business?.services)) {
+    business.services.forEach(addTextTerms);
+  }
+
+  if (Array.isArray(business?.doctors)) {
+    business.doctors.forEach(doctor => {
+      addTextTerms(doctor?.name);
+      addTextTerms(doctor?.specialty);
+    });
+  }
+
+
+  return words.some(word => businessTerms.has(word));
+}
 function findBestKnowledgeMatch(message, knowledge) {
   const normalizedMessage =
     String(message || "")
@@ -216,7 +298,48 @@ let secondBestScore = 0;
     }
   }
 
-  return bestScore >= 2 && bestScore > secondBestScore ? bestMatch : null;
+  if (!bestMatch) {
+    return null;
+  }
+
+  const bestQuestion =
+    String(bestMatch.question || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .trim();
+
+  const bestQuestionWords =
+    new Set(
+      bestQuestion
+        .split(/\s+/)
+        .filter(word => word.length >= 3)
+        .map(normalizeKnowledgeWord)
+        .filter(word => !isKnowledgeStopWord(word))
+    );
+
+  const messageWordCount = messageWords.size;
+  const questionWordCount = bestQuestionWords.size;
+
+  const messageCoverage =
+    messageWordCount > 0
+      ? bestScore / messageWordCount
+      : 0;
+
+  const questionCoverage =
+    questionWordCount > 0
+      ? bestScore / questionWordCount
+      : 0;
+
+  const scoreMargin =
+    bestScore - secondBestScore;
+
+  const confidentMatch =
+    bestScore >= 2 &&
+    scoreMargin >= 1 &&
+    messageCoverage >= 0.5 &&
+    questionCoverage >= 0.5;
+
+  return confidentMatch ? bestMatch : null;
 }
 app.get("/api/health", async (_req, res) => {
   try {
@@ -687,19 +810,31 @@ else if (
       `${business.name} is located at ${business.address}.`;
   }
 else {
-try {
-const aiResult = await generateAIResponse({
-message,
-business,
-knowledge
-});
+  const aiRelevant =
+    isBusinessRelevantMessage(
+      message,
+      business
+    );
 
-reply = aiResult.reply;
-} catch (error) {
-console.error("LLM fallback error:", error);
+  if (!aiRelevant) {
+    reply =
+      "I don't have enough information to answer that right now. Please contact the business for assistance.";
+  } else {
+    try {
+      const aiResult = await generateAIResponse({
+        message,
+        business,
+        knowledge
+      });
 
-reply = "I don't have enough information to answer that right now. Please contact the business for assistance.";
-}
+      reply = aiResult.reply;
+    } catch (error) {
+      console.error("LLM fallback error:", error);
+
+      reply =
+        "I don't have enough information to answer that right now. Please contact the business for assistance.";
+    }
+  }
 }
 res.json({
     ok: true,
@@ -1144,4 +1279,3 @@ app.listen(PORT, "0.0.0.0", () => {
   console.log("Lead Capture: ENABLED");
   console.log("==========================================");
 });
-
